@@ -1,22 +1,40 @@
 Template.postSubmit.events({
-  'submit form':  function(e) {
+  'submit form': function(e) {
     e.preventDefault();
 
-    var post={
-      url:    $(e.target).find('[name=url]').val(),
-      title:  $(e.target).find('[name=title]').val()
+    var post = {
+      url: $(e.target).find('[name=url]').val(),
+      title: $(e.target).find('[name=title]').val()
     };
 
-    Meteor.call('postsInsert', post, function(error, result) {
-      //display error to user and abort
-      if(error) {
-        return alert(error.reason);
-      }
-      if(result.postExists) {
-        alert('This link has already been posted');
-      }
+    var errors = validatePost(post);
+    if (errors.title || errors.url)
+      return Session.set('postSubmitErrors', errors);
 
-      Router.go('postPage', {_id: result._id});
+    Meteor.call('postInsert', post, function(error, id) {
+      // display the error to the user and abort
+      if (error)
+        Errors.throw(error.reason);
+
+      // show this result but route anyway
+      if (result.postExists)
+        throwError('This link has already been posted');
+
+      Router.go('postPage', {_id: result._id});  
     });
- }
-})
+  }
+});
+
+
+Template.postSubmit.created = function() {
+  Session.set('postSubmitErrors', {});
+}
+
+Template.postSubmit.helpers({
+  errorMessage: function(field) {
+    return Session.get('postSubmitErrors')[field];
+  },
+  errorClass: function(field) {
+    return !!Session.get('postSubmitErrors')[field] ? 'has-error' : '';
+  }
+});
